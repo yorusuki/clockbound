@@ -2,6 +2,10 @@
 
 網頁 Roguelite 動作遊戲原型：即時戰鬥、隨機構築、局外成長。世界觀、角色、美術全部原創。
 
+> **正式版改用 Godot 開發**，在 [`godot/`](godot/)；網頁試玩版在 [`play/`](play/)。
+> 設計規劃：[`docs/DESIGN.md`](docs/DESIGN.md)，繪圖提示詞：[`docs/ART_PROMPTS.md`](docs/ART_PROMPTS.md)。
+> 這份 README 以下描述的是根目錄的第一代網頁原型（之後不再更新）。
+
 ## 故事
 
 霍洛鐘城的大鐘「晨曦」，三百年來沒有慢過一秒——直到那一夜的 11:59。
