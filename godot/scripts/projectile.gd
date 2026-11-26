@@ -6,7 +6,7 @@ var main: Node
 var g := Vector2.ZERO
 var v := Vector2.ZERO
 var r := 6.0
-var z := 24.0
+var z := 16.0
 var dmg := 8.0
 var team := "enemy"
 var life := 4.0
@@ -50,7 +50,7 @@ func tick(dt: float) -> bool:
 				pierce -= 1
 	else:
 		var pl = main.player
-		if pl and not pl.dead and pl.g.distance_to(g) < pl.r * 0.8 + r:
+		if pl and not pl.dead and pl.g.distance_to(g) < Player.HURT_R + r:
 			if main.hurt_player(dmg):
 				return false
 	queue_redraw()
@@ -67,9 +67,13 @@ func _blocked() -> bool:
 
 func _draw() -> void:
 	# 影子
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, Iso.K * 0.5))
-	draw_circle(Vector2.ZERO, r, Color(0, 0, 0, 0.3))
+	# 影子＝判定位置：影子碰到玩家腳下那圈才算命中
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, Iso.K))
+	draw_circle(Vector2.ZERO, r, Color(0, 0, 0, 0.45))
+	if team == "enemy":
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 16, Color(col, 0.7), 1.5)
 	draw_set_transform(Vector2.ZERO)
+	draw_line(Vector2.ZERO, Vector2(0, -z + r), Color(col, 0.18), 2.0)
 	var c := Vector2(0, -z)
 	var sd := Iso.dir_to_screen(v).normalized()
 	if kind == "wave":

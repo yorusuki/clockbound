@@ -118,7 +118,7 @@ func start_room(n: int) -> void:
 	boss_ref = null
 	arena.setup(Bal.floor_no, randi())
 	_make_pillars()
-	player.g = Vector2(640, 600)
+	player.g = Vector2(640, 560)
 	player.vel = Vector2.ZERO
 	player.iframes = 1.0
 	player.sync_pos()

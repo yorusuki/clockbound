@@ -14,6 +14,7 @@ var rings: Array = []
 var lights: Array = []
 var bolts: Array = []
 var texts: Array = []
+var sectors: Array = []
 var _acc := 0.0
 var light_layer: Node2D
 
@@ -33,7 +34,7 @@ func _ready() -> void:
 	add_child(light_layer)
 
 func clear() -> void:
-	parts.clear(); arcs.clear(); streaks.clear(); rings.clear(); lights.clear(); bolts.clear(); texts.clear()
+	sectors.clear(); parts.clear(); arcs.clear(); streaks.clear(); rings.clear(); lights.clear(); bolts.clear(); texts.clear()
 
 func update_fx(dt: float) -> void:
 	_acc += minf(dt, 0.25)
@@ -51,7 +52,7 @@ func update_fx(dt: float) -> void:
 	if n >= 12:
 		_acc = 0.0
 	parts = parts.filter(func(p): return p.life > 0.0)
-	for arr in [arcs, streaks, rings, lights, bolts, texts]:
+	for arr in [arcs, streaks, rings, lights, bolts, texts, sectors]:
 		for x in arr:
 			x.t += dt
 	arcs = arcs.filter(func(x): return x.t < x.life)
@@ -60,6 +61,7 @@ func update_fx(dt: float) -> void:
 	lights = lights.filter(func(x): return x.t < x.life)
 	bolts = bolts.filter(func(x): return x.t < x.life)
 	texts = texts.filter(func(x): return x.t < x.life)
+	sectors = sectors.filter(func(x): return x.t < x.life)
 	queue_redraw()
 	light_layer.queue_redraw()
 
@@ -82,6 +84,10 @@ func spark(pos: Vector2, col: Color, crit: bool = false, dir: float = 0.0) -> vo
 
 func slash_arc(c: Vector2, r: float, a0: float, a1: float, col: Color, w: float = 4.0, life: float = 0.18, squash: float = 1.0) -> void:
 	arcs.append({"c": c, "r": r, "a0": a0, "a1": a1, "t": 0.0, "life": life, "col": col, "w": w, "sq": squash})
+
+## 地面扇形（實際判定範圍），c 是腳下的畫面座標，角度用地面角度
+func sector(c: Vector2, r: float, a0: float, a1: float, col: Color, life: float = 0.12) -> void:
+	sectors.append({"c": c, "r": r, "a0": a0, "a1": a1, "col": col, "t": 0.0, "life": life})
 
 func streak(a: Vector2, b: Vector2, col: Color, w: float = 4.0, life: float = 0.12) -> void:
 	streaks.append({"a": a, "b": b, "col": col, "w": w, "t": 0.0, "life": life})
@@ -129,6 +135,16 @@ func text(pos: Vector2, s: String, col: Color, size: int = 18) -> void:
 
 # ---------- 繪製：色彩層 ----------
 func _draw() -> void:
+	for sc in sectors:
+		var k: float = sc.t / sc.life
+		var pts := PackedVector2Array([Vector2.ZERO])
+		var n := 20
+		for i in n + 1:
+			var a: float = lerpf(sc.a0, sc.a1, float(i) / n)
+			pts.append(Vector2(cos(a), sin(a)) * sc.r)
+		draw_set_transform(sc.c, 0.0, Vector2(1.0, Iso.K))
+		draw_colored_polygon(pts, Color(sc.col, 0.22 * (1.0 - k)))
+		draw_set_transform(Vector2.ZERO)
 	for a in arcs:
 		var k: float = a.t / a.life
 		var head: float = lerpf(a.a0, a.a1, minf(k * 2.5, 1.0))

@@ -102,7 +102,7 @@ func _gear(c: Vector2, r: float, rot: float, col: Color) -> void:
 class Pillar extends Node2D:
 	var rect: Rect2           # 地面座標的碰撞範圍
 	var pal: Dictionary
-	var height := 78.0
+	var height := 56.0
 
 	func _init(r: Rect2, p: Dictionary) -> void:
 		rect = r

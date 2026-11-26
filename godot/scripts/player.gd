@@ -27,6 +27,7 @@ var whirl_tick := 0.0
 var steam_t := 0.0
 var t := 0.0
 var bot_dash_t := 0.0
+var magnet = null              # 普攻吸附的目標
 
 const SKILLS := [
 	{"name": "迴旋斬", "key": "Q", "cost": 30.0, "cd": 1.0},
@@ -37,7 +38,7 @@ func _ready() -> void:
 	r = 14.0
 	max_hp = 110.0
 	hp = max_hp
-	height = 92.0
+	height = 66.0
 	rig = Rig.new()
 	add_child(rig)
 	rig.build_erin()
@@ -169,6 +170,12 @@ func tick(dt: float) -> void:
 		attack.t += dt
 		if attack.kind == "basic" and inp.atk and attack.t > attack.dur * 0.6:
 			queued = true
+		if attack.kind == "basic" and not attack.fired and magnet != null and not magnet.dead:
+			var to: Vector2 = magnet.g - g
+			var reach: float = float(Bal.ATTACK["quick" if stance == 0 else "heavy"].range) * 0.75 + magnet.r
+			if to.length() > reach:
+				g += to.normalized() * minf(to.length() - reach, 420.0 * dt)
+				aim = to.angle()
 		if not attack.fired and attack.t >= attack.dur * Bal.STRIKE_AT:
 			attack.fired = true
 			if attack.strike.is_valid():
@@ -208,6 +215,19 @@ func _start_attack() -> void:
 		"type": "heavy" if (stance == 1 or fin) else "slash", "move": P.move,
 	}
 	attack.strike = func(): _strike(P, c, fin)
+	# 吸附：瞄準方向附近、稍微超出攻擊距離的敵人，蓄力時會自動踏步靠近
+	magnet = null
+	var best := 1e9
+	for e in main.enemies:
+		if e.dead:
+			continue
+		var to: Vector2 = e.g - g
+		var d: float = to.length() - e.r
+		if d < float(P.range) + 50.0 and absf(angle_difference(aim, to.angle())) < float(P.half) + 0.35 and d < best:
+			best = d
+			magnet = e
+	if magnet != null:
+		aim = (magnet.g - g).angle()
 	combo = (combo + 1) % n
 
 func _strike(P: Dictionary, c: int, fin: bool) -> void:
@@ -230,12 +250,12 @@ func _strike(P: Dictionary, c: int, fin: bool) -> void:
 		main.damage_enemy(e, float(P.dmg[c]), opts)
 		n += 1
 	# 刀光（畫面座標、壓扁成地面角度）
-	var sd := Iso.dir_to_screen(Vector2.from_angle(ang))
-	var sa := sd.angle()
 	var side: float = attack.side if attack else 1.0
 	var w := 5.0 if (stance == 1 or fin) else 4.0
 	var col := Color("ffcf8a") if (stance == 1 or fin) else Color("e8eef8")
-	main.fx.slash_arc(Iso.to_screen(g, 40), rng_v * 0.9, sa - half * side, sa + half * side, col, w, 0.22 if fin else 0.18)
+	# 刀光畫在腳下的地面上，大小就是實際打得到的範圍
+	main.fx.sector(Iso.to_screen(g), rng_v, ang - half, ang + half, col, 0.12)
+	main.fx.slash_arc(Iso.to_screen(g), rng_v, ang - half * side, ang + half * side, col, w, 0.22 if fin else 0.18, Iso.K)
 	main.audio("swing")
 	if n > 0:
 		energy = minf(max_energy, energy + 7.0 + 2.0 * (n - 1))
@@ -277,9 +297,10 @@ func _whirl_tick(dt: float) -> void:
 		for e in main.enemies:
 			if not e.dead and e.g.distance_to(g) < 100.0 + e.r:
 				main.damage_enemy(e, 11.0, {"dir": (e.g - g).normalized(), "kb": 80.0, "tags": ["melee", "skill"]})
-		var c := Iso.to_screen(g, 36)
+		var c := Iso.to_screen(g)
 		var a0 := t * 18.0
-		main.fx.slash_arc(c, 92.0, a0, a0 + 2.4, Color("ffe9d0"), 5.0, 0.16, Iso.K)
+		main.fx.slash_arc(c, 100.0, a0, a0 + 2.4, Color("ffe9d0"), 5.0, 0.16, Iso.K)
+		main.fx.sector(c, 100.0, 0.0, TAU, Color("ffe9d0"), 0.1)
 		main.audio("swing")
 
 func _wave() -> void:
@@ -290,7 +311,7 @@ func _wave() -> void:
 		main.spawn_bullet({"g": g + Vector2.from_angle(a) * 20, "v": Vector2.from_angle(a) * 640.0, "r": 26.0, "dmg": 22.0, "team": "player",
 			"life": 0.55, "pierce": 99, "kind": "wave", "col": Color("ffe0b0"), "kb": 140.0, "z": 36.0})
 	var sa := Iso.dir_to_screen(Vector2.from_angle(aim)).angle()
-	main.fx.slash_arc(Iso.to_screen(g, 40), 56, sa - 1.2, sa + 1.2, Color("ffe0b0"), 5.0, 0.2)
+	main.fx.slash_arc(Iso.to_screen(g, 28), 40, sa - 1.2, sa + 1.2, Color("ffe0b0"), 5.0, 0.2)
 	main.audio("swing")
 
 # ---------- 動作姿勢（蓄力 → 揮擊 → 收招）----------
@@ -337,8 +358,15 @@ func _update_pose(dt: float) -> void:
 	rig.modulate = Color(2.4, 2.4, 2.4) if flash > 0.0 else (Color(1, 1, 1, 0.5) if iframes > 0.0 and dash_t <= 0.0 and int(t * 20) % 2 == 0 else Color(1, 1, 1, 1))
 	queue_redraw()
 
+const HURT_R := 11.0   # 受傷判定半徑（腳下那圈）
+
 func _draw() -> void:
-	draw_shadow(18.0)
+	draw_shadow(r)
+	# 受傷判定圈：子彈的影子、地面預警碰到這圈才會受傷
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, Iso.K))
+	draw_arc(Vector2.ZERO, HURT_R, 0.0, TAU, 24, Color(1, 0.95, 0.8, 0.55), 1.5)
+	draw_circle(Vector2.ZERO, 2.0, Color(1, 0.95, 0.8, 0.8))
+	draw_set_transform(Vector2.ZERO)
 	if overheated:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, Iso.K * 0.5))
 		draw_arc(Vector2.ZERO, 24.0, 0.0, TAU, 24, Color(1, 0.35, 0.2, 0.6), 2.0)

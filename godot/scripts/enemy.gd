@@ -32,13 +32,15 @@ var at := 0.0
 var atk_i := 0
 var flags := {}
 var strafe := 1.0
+var vs := 0.75               # 造型縮放
 
 func setup(kind: String, pos: Vector2) -> void:
 	type = kind
 	def = DEFS[kind]
 	g = pos
 	r = def.r
-	height = def.h
+	vs = 0.82 if kind == "colossus" else 0.75
+	height = def.h * vs
 	spd = def.spd * randf_range(0.92, 1.08)
 	dmg = round(def.dmg * Bal.dmg())
 	max_hp = def.hp * Bal.hp()
@@ -99,7 +101,7 @@ func tick(dt: float) -> void:
 			main.shake(4.0)
 		# 接觸傷害
 		var pl = main.player
-		if pl and not pl.dead and fuse <= 0.0 and stun <= 0.0 and g.distance_to(pl.g) < r + pl.r - 3:
+		if pl and not pl.dead and fuse <= 0.0 and stun <= 0.0 and g.distance_to(pl.g) < r + Player.HURT_R - 2:
 			main.hurt_player(dmg)
 	sync_pos()
 	queue_redraw()
@@ -290,7 +292,8 @@ func _c(col: Color) -> Color:
 	return Color(1, 1, 1) if flash > 0.0 else col
 
 func _draw() -> void:
-	draw_shadow(r * 1.1)
+	# 影子大小就是受擊判定範圍
+	draw_shadow(r, 0.42)
 	if fuse > 0.0:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, Iso.K))
 		draw_circle(Vector2.ZERO, 70.0 * Bal.aoe(), Color(1, 0.3, 0.2, 0.12 + fuse * 0.25))
@@ -302,7 +305,7 @@ func _draw() -> void:
 	var s := face
 	match type:
 		"rat":
-			draw_set_transform(Vector2(0, -12 + bob * 0.5), 0.0, Vector2(s, 1))
+			draw_set_transform(Vector2(0, -12 + bob * 0.5) * vs, 0.0, Vector2(s, 1) * vs)
 			draw_circle(Vector2(0, 0), 13, O)
 			draw_circle(Vector2(0, 0), 11, _c(col))
 			draw_circle(Vector2(12, -4), 8, O)
@@ -310,7 +313,7 @@ func _draw() -> void:
 			draw_circle(Vector2(15, -6), 2, Color("ff4a3a"))
 			draw_line(Vector2(-12, 2), Vector2(-24, -6 + sin(t * 12) * 4), O, 2)
 		"guard", "archer", "caster":
-			draw_set_transform(Vector2(0, bob * 0.3), 0.0, Vector2(s, 1))
+			draw_set_transform(Vector2(0, bob * 0.3) * vs, 0.0, Vector2(s, 1) * vs)
 			var body := PackedVector2Array([Vector2(-14, 0), Vector2(14, 0), Vector2(11, -h * 0.62), Vector2(-11, -h * 0.62)])
 			draw_colored_polygon(body, _c(col))
 			draw_polyline(body + PackedVector2Array([body[0]]), O, 2.0)
@@ -332,14 +335,14 @@ func _draw() -> void:
 				else:
 					draw_circle(Vector2(18, -h * 0.5), 7, _c(Color("e8c050")))
 		"bomber":
-			draw_set_transform(Vector2(0, -14), 0.0, Vector2(s, 1))
+			draw_set_transform(Vector2(0, -14) * vs, 0.0, Vector2(s, 1) * vs)
 			draw_circle(Vector2.ZERO, 15, O)
 			draw_circle(Vector2.ZERO, 13, _c(col))
 			draw_circle(Vector2(4, -4), 5, Color(1, 0.9, 0.4, 0.6 + fuse * 0.4))
 			for k in 3:
 				draw_line(Vector2(-8 + k * 8, 10), Vector2(-10 + k * 8, 16 + sin(t * 20 + k) * 2), O, 2)
 		"brute":
-			draw_set_transform(Vector2(0, bob * 0.3), 0.0, Vector2(s, 1))
+			draw_set_transform(Vector2(0, bob * 0.3) * vs, 0.0, Vector2(s, 1) * vs)
 			draw_rect(Rect2(-24, -h * 0.75, 48, h * 0.75), O)
 			draw_rect(Rect2(-22, -h * 0.75 + 2, 44, h * 0.75 - 4), _c(col))
 			draw_rect(Rect2(-14, -h, 28, 26), O)
@@ -347,7 +350,7 @@ func _draw() -> void:
 			draw_circle(Vector2(6, -h + 12), 3, Color("ffd447") if state == "charge" else Color("ff4a3a"))
 			draw_rect(Rect2(20, -h * 0.55, 26, 10), _c(Color("5e6470")))
 		"colossus":
-			draw_set_transform(Vector2(0, -h * 0.45 + bob), 0.0, Vector2(s, 1))
+			draw_set_transform(Vector2(0, -h * 0.45 + bob) * vs, 0.0, Vector2(s, 1) * vs)
 			var pts := PackedVector2Array()
 			for k in 24:
 				var a := k * TAU / 24 + t * (0.9 if phase == 2 else 0.4)
@@ -376,19 +379,19 @@ func _draw() -> void:
 	# 血條
 	if not boss and hp < max_hp:
 		var w := maxf(26.0, r * 2.2)
-		draw_rect(Rect2(-w / 2, -h - 14, w, 5), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(-w / 2, -h - 14, w * clampf(hp / max_hp, 0, 1), 5), Color("e04a4a"))
+		draw_rect(Rect2(-w / 2, -h * vs - 14, w, 5), Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(-w / 2, -h * vs - 14, w * clampf(hp / max_hp, 0, 1), 5), Color("e04a4a"))
 	if stun > 0.0 and not boss:
 		for k in 3:
 			var a := t * 6.0 + k * 2.1
-			draw_rect(Rect2(Vector2(cos(a) * r, -h - 22 + sin(a) * 3), Vector2(3, 3)), Color("ffe36a"))
+			draw_rect(Rect2(Vector2(cos(a) * r, -h * vs - 22 + sin(a) * 3), Vector2(3, 3)), Color("ffe36a"))
 
 ## 死亡碎裂用的取樣點（顏色、畫面位置）
 func shatter_points() -> Array:
 	var pts := []
-	var h: float = def.h
+	var h: float = height
 	var n := 40 if not boss else 120
 	for k in n:
-		var p := position + Vector2(randf_range(-r, r) * 1.1, -randf() * h)
+		var p := position + Vector2(randf_range(-r, r) * 0.9, -randf() * h)
 		pts.append([def.col.lightened(randf_range(-0.2, 0.25)), p])
 	return pts

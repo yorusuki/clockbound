@@ -7,6 +7,7 @@ var parts := {}
 var facing := 1.0
 var run_phase := 0.0
 var weapon_kind := ""
+var size := 0.72              # 整體縮放（角色太大時調這裡）
 
 const OUT := Color("1b1420")
 const PAL := {
@@ -95,7 +96,7 @@ func set_weapon(kind: String) -> void:
 ## aim_local：面向右的座標系中，武器要指的角度（0 = 正右、PI/2 = 正下）
 ## off：攻擊動作的角度偏移；ext：武器往前伸；body：身體前後位移；hurt：受擊後仰
 func pose(dt: float, move_ratio: float, aim_local: float, off: float, ext: float, body: float, hurt: float, lean: float, t: float) -> void:
-	scale.x = facing
+	scale = Vector2(facing, 1.0) * size
 	run_phase += dt * 14.0 * move_ratio
 	var s := sin(run_phase)
 	var hip: Node2D = parts["hip"]

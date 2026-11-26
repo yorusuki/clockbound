@@ -47,7 +47,7 @@ func contains(p: Vector2, pr: float) -> bool:
 func _apply() -> void:
 	if team == "enemy":
 		var pl = main.player
-		if pl and not pl.dead and contains(pl.g, pl.r * 0.6):
+		if pl and not pl.dead and contains(pl.g, Player.HURT_R * 0.7):
 			if main.hurt_player(dmg):
 				hit_once = true
 
